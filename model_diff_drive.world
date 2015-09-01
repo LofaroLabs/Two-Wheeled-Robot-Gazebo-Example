@@ -1,0 +1,101 @@
+<?xml version="1.0"?> 
+<sdf version="1.4">
+  <world name="default">
+
+    <!-- Ground Plane -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    
+
+   <model name ='sphere'>
+            <pose>1 0 0 0 0 0</pose>
+            <link name ='link'>
+              <pose>2 0 .5 0 0 0</pose>
+              <collision name ='collision'>
+                <geometry>
+                  <sphere><radius>0.5</radius></sphere>
+                </geometry>
+              </collision>
+              <visual name ='visual'>
+                <geometry>
+                  <sphere><radius>0.5</radius></sphere>
+                </geometry>
+  <material>
+    <ambient>1 0 0 1</ambient>
+    <diffuse>1 0 0 1</diffuse>
+    <specular>0.1 0.1 0.1 1</specular>
+    <emissive>0 0 0 0</emissive>
+  </material>
+              </visual>
+            </link>
+    </model>
+
+
+
+
+
+   <model name ='sphere'>
+            <pose>1 0 0 0 0 0</pose>
+            <link name ='link'>
+              <pose>-6 0 .5 0 0 0</pose>
+              <collision name ='collision'>
+                <geometry>
+                  <sphere><radius>0.5</radius></sphere>
+                </geometry>
+              </collision>
+              <visual name ='visual'>
+                <geometry>
+                  <sphere><radius>0.5</radius></sphere>
+                </geometry>
+  <material>
+    <ambient>0 1 0 1</ambient>
+    <diffuse>0 1 0 1</diffuse>
+    <specular>0.1 0.1 0.1 1</specular>
+    <emissive>0 0 0 0</emissive>
+  </material>
+              </visual>
+            </link>
+    </model>
+
+
+
+   <model name ='sphere'>
+            <pose>1 0 0 0 0 0</pose>
+            <link name ='link'>
+              <pose>0 4 .5 0 0 0</pose>
+              <collision name ='collision'>
+                <geometry>
+                  <sphere><radius>0.5</radius></sphere>
+                </geometry>
+              </collision>
+              <visual name ='visual'>
+                <geometry>
+                  <sphere><radius>0.5</radius></sphere>
+                </geometry>
+  <material>
+    <ambient>0 0 1 1</ambient>
+    <diffuse>0 0 1 1</diffuse>
+    <specular>0.1 0.1 0.1 1</specular>
+    <emissive>0 0 0 0</emissive>
+  </material>
+              </visual>
+            </link>
+    </model>
+
+
+
+
+    <model name="DiffDrive">
+      <include>
+        <uri>model://d_diff_drive_robot</uri>
+      </include>
+      <pose>-2 0 0.5 0 0 0</pose>
+      <plugin name="model_diff_drive" filename="build/libmodel_diff_drive.so"/>
+    </model>        
+  </world>
+</sdf>

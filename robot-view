@@ -1,0 +1,301 @@
+#!/bin/bash
+# /* -*-  indent-tabs-mode:t; tab-width: 8; c-basic-offset: 8  -*- */
+# /*
+# Copyright (c) 2014, Daniel M. Lofaro <dan (at) danLofaro (dot) com>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of the author nor the names of its contributors may
+#       be used to endorse or promote products derived from this software
+#       without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# */
+# Daniel M. Lofaro (dan@danlofaro.com)
+
+export LD_LIBRARY_PATH=/usr/lib:
+ROBOT_PATH_MAIN=$('pwd')
+export GAZEBO_PLUGIN_PATH=$ROBOT_PATH_MAIN/build:${GAZEBO_PLUGIN_PATH}
+export GAZEBO_PLUGIN_PATH=$ROBOT_PATH_MAIN:${GAZEBO_PLUGIN_PATH}
+rm ~/.gazebo/models/d_diff_drive_robot
+ln -s $ROBOT_PATH_MAIN ~/.gazebo/models/d_diff_drive_robot
+
+
+ROBOT_VIEW_VID_CHAN='robot-vid-chan'
+ROBOT_TIME_CHAN='robot-time'
+ROBOT_DIFF_DRIVE_CHAN='robot-diff-drive'
+ROBOT_VIEW_CLIENT_FILE='robot-view-client.py'
+
+ROBOT_REMOTE_ADDRESS='0.0.0.0'
+
+FLAG_VIEW_CLIENT=1 #Default client
+FLAG_VIEW_SERVER=0
+FLAG_REMOTE=0
+FLAG_NOCONSOLE=0
+
+trim()
+{
+  local var=$@
+  echo -n "${var//[[:space:]]/}"
+}
+
+
+MakeAch()
+{
+	ach -1 -C $ROBOT_VIEW_VID_CHAN -m 30 -n 3000000
+	ach -1 -C $ROBOT_DIFF_DRIVE_CHAN -m 30 -n 30000
+	ach -1 -C $ROBOT_TIME_CHAN -m 30 -n 30000
+        sudo chmod 777 /dev/shm/achshm-*
+}
+
+Remote()
+{
+
+case "$1" in 
+'kill')
+	KillRemote
+;;
+*)
+     MakeAch
+     if [[ $FLAG_VIEW_CLIENT -eq 1 ]]
+     then
+         achd -r pull $1 $ROBOT_VIEW_VID_CHAN &
+     fi
+
+     if [[ $FLAG_VIEW_SERVER -eq 1 ]]
+     then
+         achd -r push $1 $ROBOT_VIEW_VID_CHAN &
+     fi
+;;
+esac
+
+}
+
+RunViewClient()
+{
+#   cd /etc/hubo-ach
+   echo 'Starting hubo-view client process...'
+#   screen -S huboviewclient -d -m python $HUBO_VIEW_CLIENT_DIR
+#   python $HUBO_VIEW_CLIENT_DIR
+   python $ROBOT_VIEW_DIR$ROBOT_VIEW_CLIENT_FILE
+#   sleep 5
+#   if ! screen -list | grep -q "huboviewclient"; then
+#        echo 'hubo-view client started: FAIL'
+#   else
+#  	echo 'hubo-view client started: success'
+#   fi
+}
+
+RunViewServer()
+{
+
+    gazebo model_diff_drive.world &
+    ./build/video_listener &
+
+#   cd /etc/hubo-ach
+#   cd $HUBO_VIEW_DIR
+#   echo 'Starting hubo-view server process...'
+#   screen -S huboviewserver -d -m python $HUBO_VIEW_SERVER_FILE
+#   python $HUBO_VIEW_SERVER_DIR
+#   echo $HUBO_VIEW_SERVER_DIR
+#   sleep 5
+#   if ! screen -list | grep -q "huboviewserver"; then
+#        echo 'hubo-view server started: FAIL'
+#   else
+#  	echo 'hubo-view server started: success'
+#   fi
+}
+
+RunStatus()
+{
+     if ! screen -list | grep -q "huboviewserver"; then
+        echo 'hubo-view server started: FAIL'
+     else
+        echo 'hubo-view server started: success'
+     fi
+     if ! screen -list | grep -q "huboviewclient"; then
+        echo 'hubo-view client started: FAIL'
+     else
+        echo 'hubo-view client started: success'
+     fi
+}
+
+RunView()
+{
+     MakeAch
+     if [[ $FLAG_VIEW_CLIENT -eq 1 ]]
+     then
+         RunViewClient
+     fi
+
+     if [[ $FLAG_VIEW_SERVER -eq 1 ]]
+     then
+         RunViewServer
+     fi
+}
+
+KillRemote()
+{
+	sudo kill -9 $(pidof achd)
+}
+
+KillAll()
+{
+        screen -S huboviewserver -p 0 -X quit
+        screen -S huboviewclient -p 0 -X quit
+	KillRemote
+        sudo rm -r /dev/shm/achshm*
+        sudo kill -9 $(pidof video_listener)
+        sudo kill -9 $(pidof gzserver)
+        sudo kill -9 $(pidof gzclient)
+        sudo kill -9 $(pidof gazebo)
+}
+
+Install()
+{
+case "$1" in
+        'install')
+                cd $ROBOT_PATH_MAIN
+                sudo rm -r -f build
+                mkdir build
+                cd build
+                cmake ../; make
+	;;
+	'remove')
+                cd $ROBOT_PATH_MAIN
+                cd build
+		make clean
+		rm -r -f *
+	;;
+        *)
+                echo 'Install Options: '
+		echo '  install         - Installs hubo-view to /etc/hubo/hubo-view/'
+		echo '  remove          - Removes hubo-view'
+        ;;
+        esac
+}
+
+ShowUsage()
+{
+	echo
+	echo '---- Robot-View arg list ----'
+	echo 'client        : starts client (reads from server)'
+	echo 'server        : starts server' 
+        echo 'remote        : Starts a remote connection to xxx.xxx.xxx.xxx via achd'
+	echo '              : can put at end of any other command. '
+	echo '              : if client will pull (default) to IP, if server will push'
+        echo '              : Options:'
+        echo '                     xxx.xxx.xxx.xxx      : sets connection to IP xxx.xxx.xxx.xxx'
+        echo '                     kill                 : kills remote connections'
+        echo 'install       : Installs hubo-view to /etc/hubo/hubo-view'
+	echo 'remove        : Removes hubo-view'
+	echo 'kill          : Kills and removes hubo-view and ach channels'
+	echo 'make          : makes ach channels'
+	echo
+}
+
+
+SetFlags()
+{
+ROBOT_I=0
+ROBOT_TEMP1="$@"
+ROBOT_TEMP=($ROBOT_TEMP1)
+for var in "$@"
+do
+#    echo "$var"
+    case "$var" in
+      'server' )
+          FLAG_VIEW_SERVER=1
+          FLAG_VIEW_CLIENT=0
+      ;;
+      'client' )
+          FLAG_VIEW_SERVER=0
+          FLAG_VIEW_CLIENT=1
+      ;;
+      'remote' )
+	  FLAG_REMOTE=1
+          ROBOT_REMOTE_ADDRESS=${ROBOT_TEMP[$(($ROBOT_I+1))]}
+	  echo "Remote address set: "$ROBOT_REMOTE_ADDRESS
+      ;;
+    esac
+    ROBOT_I=$(($ROBOT_I+1))
+
+done
+}
+
+
+echo '======================================'
+echo '============= Hubo-View =============='
+echo '========== Daniel M. Lofaro =========='
+echo '========= dan@danLofaro.com =========='
+echo '======================================'
+
+SetFlags $@
+
+## Set Remote ##
+case "$1" in 
+	'remote')
+		Remote $2
+	;;
+	*)
+	   if [[ $FLAG_REMOTE -eq 1 ]]
+	   then
+	       echo 'Starting remote connection'
+	       Remote $ROBOT_REMOTE_ADDRESS
+	   fi
+	;;
+esac
+
+
+
+## Start all other parts ##
+case "$1" in
+	'client' )
+		RunView
+	;;
+        'server' )
+		RunView
+	;;
+	'status' )
+                RunStatus
+ 	;;
+        'install' )
+		Install $1
+	;;
+	'remove' )
+		Install $1
+	;;
+	'make' )
+		MakeAch
+	;;
+	'kill' )
+		KillAll
+	;;
+	*)
+		ShowUsage
+		exit 1
+	;;
+esac
+
+exit 0
+
+# Local Variables:
+#  indent-tabs-mode:t
+#  tab-width: 8
+#  c-basic-offset: 8
+# End:
